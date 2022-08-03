@@ -1,9 +1,10 @@
 """Test the decorators for the loggers"""
 from logging.handlers import QueueHandler
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
-from kytos.core.logger_decorators import queue_decorator, root_decorator
+from kytos.core.logger_decorators import (apm_decorator, queue_decorator,
+                                          root_decorator)
 
 
 class DummyLoggerClass:
@@ -28,6 +29,25 @@ class DummyLoggerClass:
             return True
         return False
     # pylint: enable=invalid-name
+
+
+class DummyLoggingClass(DummyLoggerClass):
+    """DummyLoggingClass. """
+
+    debug = MagicMock()
+    info = MagicMock()
+    warning = MagicMock()
+    error = MagicMock()
+    exception = MagicMock()
+    critical = MagicMock()
+    fatal = MagicMock()
+    log = MagicMock()
+
+    def __init__(self, name, level) -> None:
+        """DummyLoggingClass."""
+        self.log_attrs = ["debug", "info", "warning", "error",
+                          "exception", "critical", "fatal", "log"]
+        super().__init__(name, level)
 
 
 class RootDecoratorTest(TestCase):
@@ -89,3 +109,25 @@ class QueueDecoratorTest(TestCase):
 
     def tearDown(self):
         pass
+
+
+class APMDecoratorTest(TestCase):
+    """Test apm_decorator."""
+
+    def setUp(self):
+        """Create decorated class for tests"""
+        self.decorated_class = apm_decorator(DummyLoggingClass)
+
+    def test_decorated_logger(self):
+        """Test decorated_logger."""
+        name = 'test'
+        level = 4
+        logger = self.decorated_class(name, level)
+        self.assertEqual(logger.name, name)
+        self.assertEqual(logger.level, level)
+
+        # assert that it's been decorated and fully wrapped
+        assert logger.__class__.__name__ == "APMLogger"
+        for log_attr in logger.log_attrs:
+            attr = getattr(logger, log_attr)
+            self.assertEqual(getattr(attr, "__name__"), "wrapper")
